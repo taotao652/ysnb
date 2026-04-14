@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>长征数据可视化看板</title>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  <style>
+    :root {
+      --bg: #050b18;
+      --panel: #0b1a2e;
+      --panel-soft: #0f233e;
+      --line: #1c4068;
+      --text: #e8f1ff;
+      --muted: #94b5dd;
+      --gold: #f5c15e;
+      --red: #ff4f5b;
+      --blue: #59b8ff;
+      --green: #47d38b;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 78% 35%, rgba(180, 40, 60, 0.34), transparent 33%),
+        radial-gradient(circle at 20% -5%, rgba(255, 175, 80, 0.14), transparent 35%),
+        linear-gradient(180deg, #24050a 0%, #090f1f 34%, #050b18 100%);
+    }
+    .hero {
+      min-height: 88vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 36px 18px;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        repeating-radial-gradient(circle at 50% 50%, rgba(255, 90, 90, 0.05) 0 4px, transparent 4px 24px);
+      opacity: 0.35;
+      pointer-events: none;
+    }
+    .hero-inner {
+      position: relative;
+      z-index: 1;
+      max-width: 920px;
+      animation: fadeUp .9s ease both;
+    }
+    .hero-top {
+      color: rgba(255, 228, 182, 0.85);
+      font-size: 14px;
+      letter-spacing: 5px;
+      margin-bottom: 16px;
+    }
+    .hero h1 {
+      margin: 0;
+      font-size: clamp(36px, 6vw, 74px);
+      line-height: 1.16;
+      font-weight: 800;
+      text-shadow: 0 0 26px rgba(255, 132, 112, 0.2);
+    }
+    .hero h1 .gold {
+      display: inline-block;
+      margin-top: 8px;
+      color: var(--gold);
+    }
+    .hero-sub {
+      margin-top: 24px;
+      color: #ffe7cb;
+      letter-spacing: 3px;
+      font-size: 21px;
+    }
+    .hero-actions {
+      margin-top: 32px;
+      display: flex;
+      justify-content: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    .hero-btn {
+      padding: 12px 26px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 170, 133, 0.35);
+      font-size: 15px;
+      color: #ffe6d7;
+      background: rgba(255, 72, 98, 0.15);
+      cursor: pointer;
+      transition: all .2s ease;
+      text-decoration: none;
+    }
+    .hero-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px rgba(255, 70, 70, 0.2);
+      border-color: rgba(255, 185, 120, 0.75);
+    }
+    .hero-btn.ghost {
+      background: rgba(15, 26, 46, 0.72);
+      border-color: rgba(99, 176, 255, 0.35);
+    }
+    .hero-btn:first-child {
+      animation: pulseGlow 2.2s ease-in-out infinite;
+    }
+    .arrow {
+      margin-top: 28px;
+      color: rgba(202, 230, 255, 0.75);
+      font-size: 13px;
+      letter-spacing: 2px;
+      animation: float 1.5s ease-in-out infinite;
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(4px); }
+    }
+    .container {
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 22px 20px 26px;
+    }
+    .section-title {
+      margin: 0 0 14px;
+      font-size: 20px;
+      color: #ffd58d;
+      letter-spacing: 2px;
+    }
+    .activity-banner {
+      margin-bottom: 14px;
+      padding: 14px;
+      border-radius: 12px;
+      border: 1px solid #2d5f92;
+      background: linear-gradient(145deg, rgba(15, 34, 58, 0.92), rgba(12, 25, 43, 0.92));
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      gap: 12px;
+      align-items: center;
+    }
+    .activity-title {
+      font-size: 18px;
+      color: #ffd89a;
+      margin: 0 0 8px;
+    }
+    .activity-desc {
+      color: #9ec0e6;
+      font-size: 13px;
+      line-height: 1.7;
+      margin: 0;
+    }
+    .tag-wrap {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .tag {
+      border: 1px solid #3b78af;
+      color: #cfe6ff;
+      background: rgba(24, 55, 88, 0.4);
+      border-radius: 999px;
+      font-size: 12px;
+      padding: 6px 12px;
+    }
+    .tech-flow {
+      margin-bottom: 14px;
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .flow-card {
+      background: linear-gradient(145deg, rgba(13, 33, 56, 0.92), rgba(9, 22, 40, 0.92));
+      border: 1px solid #265d8f;
+      border-radius: 10px;
+      padding: 10px;
+      min-height: 90px;
+      transition: transform .22s ease, border-color .22s ease, box-shadow .22s ease;
+    }
+    .flow-card:hover {
+      transform: translateY(-3px);
+      border-color: #59a3ea;
+      box-shadow: 0 14px 28px rgba(32, 106, 179, 0.2);
+    }
+    .flow-step {
+      color: #7fc4ff;
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+    .flow-title {
+      color: #ffe0a5;
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .flow-note {
+      color: #9dbde1;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    .select, .btn {
+      border: 1px solid #2b5e8f;
+      background: rgba(10, 30, 52, 0.86);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 14px;
+      color: var(--text);
+      outline: none;
+    }
+    .btn {
+      cursor: pointer;
+      transition: all .2s ease;
+    }
+    .btn:hover {
+      border-color: #52a1e8;
+      box-shadow: 0 0 0 2px rgba(75, 162, 240, 0.18);
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .card {
+      position: relative;
+      background: linear-gradient(145deg, rgba(12, 32, 55, 0.95), rgba(10, 24, 44, 0.95));
+      border: 1px solid #204f7a;
+      border-radius: 12px;
+      padding: 12px;
+      min-height: 104px;
+      overflow: hidden;
+      transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+    }
+    .card:hover {
+      transform: translateY(-3px);
+      border-color: #55a0e7;
+      box-shadow: 0 16px 30px rgba(27, 94, 165, 0.2);
+    }
+    .card::after {
+      content: "";
+      position: absolute;
+      right: -32px;
+      top: -36px;
+      width: 110px;
+      height: 110px;
+      background: radial-gradient(circle, rgba(90, 170, 255, 0.22), transparent 70%);
+    }
+    .card .k {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+    .card .v {
+      font-size: 30px;
+      font-weight: 700;
+      color: #ffde9f;
+      text-shadow: 0 0 16px rgba(255, 194, 94, 0.25);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1.35fr 1fr;
+      gap: 12px;
+    }
+    .panel {
+      background: linear-gradient(145deg, rgba(10, 26, 45, 0.95), rgba(8, 20, 35, 0.95));
+      border: 1px solid #1e4a75;
+      border-radius: 12px;
+      padding: 10px;
+      box-shadow: inset 0 0 0 1px rgba(67, 127, 180, 0.15);
+      transition: border-color .2s ease, transform .2s ease;
+    }
+    .panel:hover {
+      border-color: #4f97d8;
+      transform: translateY(-2px);
+    }
+    .chart {
+      width: 100%;
+      height: 360px;
+    }
+    .chart.tall { height: 420px; }
+    .table-wrap {
+      background: linear-gradient(145deg, rgba(12, 29, 50, 0.95), rgba(8, 20, 37, 0.95));
+      border: 1px solid #1e4a75;
+      border-radius: 12px;
+      padding: 12px;
+      margin-top: 12px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      color: #d8e8ff;
+    }
+    th, td {
+      border-bottom: 1px solid rgba(76, 126, 173, 0.25);
+      padding: 10px 8px;
+      text-align: left;
+    }
+    th {
+      color: #a5c3e6;
+      font-weight: 600;
+      background: rgba(27, 54, 88, 0.35);
+    }
+    .tip {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .sources {
+      margin-top: 10px;
+      color: #83a5ce;
+      font-size: 12px;
+      line-height: 1.7;
+    }
+    .sources a {
+      color: #9fd2ff;
+      text-decoration: none;
+    }
+    .sources a:hover { text-decoration: underline; }
+    .photo-section {
+      margin-bottom: 16px;
+    }
+    .photo-title {
+      margin: 0 0 10px;
+      font-size: 18px;
+      color: #ffd89a;
+      letter-spacing: 1px;
+    }
+    .photo-group {
+      margin-bottom: 14px;
+    }
+    .photo-group-title {
+      margin: 0 0 8px;
+      color: #9fd2ff;
+      font-size: 14px;
+      letter-spacing: 1px;
+    }
+    .photo-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .photo-card {
+      position: relative;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid #2a5a87;
+      background: #0a1b2f;
+      cursor: pointer;
+      min-height: 180px;
+    }
+    .photo-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform .35s ease, filter .35s ease;
+    }
+    .photo-card:hover img {
+      transform: scale(1.05);
+      filter: saturate(1.05) brightness(1.08);
+    }
+    .photo-card::after {
+      content: "点击放大";
+      position: absolute;
+      right: 8px;
+      bottom: 8px;
+      font-size: 12px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      color: #d6ebff;
+      border: 1px solid rgba(152, 207, 255, 0.6);
+      background: rgba(8, 23, 40, 0.65);
+    }
+    .lightbox {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(2, 8, 18, 0.9);
+      z-index: 999;
+      padding: 24px;
+    }
+    .lightbox.open { display: flex; }
+    .lightbox img {
+      max-width: min(1200px, 94vw);
+      max-height: 88vh;
+      border-radius: 10px;
+      border: 1px solid #356594;
+      box-shadow: 0 16px 50px rgba(0, 0, 0, 0.45);
+    }
+    .lightbox-close {
+      position: absolute;
+      top: 16px;
+      right: 20px;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 1px solid #4f83b5;
+      background: rgba(10, 27, 45, 0.9);
+      color: #d6ebff;
+      font-size: 20px;
+      line-height: 30px;
+      text-align: center;
+      cursor: pointer;
+      user-select: none;
+    }
+    .lightbox-nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 1px solid #4f83b5;
+      background: rgba(10, 27, 45, 0.88);
+      color: #d6ebff;
+      font-size: 26px;
+      line-height: 34px;
+      text-align: center;
+      cursor: pointer;
+      user-select: none;
+    }
+    .lightbox-prev { left: 16px; }
+    .lightbox-next { right: 16px; }
+    .lightbox-index {
+      position: absolute;
+      bottom: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #c6e4ff;
+      font-size: 12px;
+      border: 1px solid rgba(111, 161, 209, 0.6);
+      background: rgba(9, 22, 39, 0.75);
+      padding: 4px 10px;
+      border-radius: 999px;
+    }
+    .result-grid {
+      margin: 14px 0;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .result-card {
+      background: linear-gradient(145deg, rgba(14, 33, 56, 0.95), rgba(9, 22, 40, 0.95));
+      border: 1px solid #2e6698;
+      border-radius: 10px;
+      padding: 12px;
+    }
+    .result-k {
+      color: #8eb5dd;
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+    .result-v {
+      color: #ffe1a8;
+      font-size: 26px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .result-note {
+      color: #9ec0e6;
+      font-size: 12px;
+    }
+    .reveal {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity .55s ease, transform .55s ease;
+      will-change: opacity, transform;
+    }
+    .reveal.in {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(255, 88, 96, 0.1); }
+      50% { box-shadow: 0 0 0 8px rgba(255, 88, 96, 0); }
+    }
+    @media (max-width: 1024px) {
+      .cards { grid-template-columns: repeat(2, 1fr); }
+      .grid { grid-template-columns: 1fr; }
+      .controls { grid-template-columns: 1fr; }
+      .activity-banner { grid-template-columns: 1fr; }
+      .tag-wrap { justify-content: flex-start; }
+      .tech-flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .photo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .result-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+  <section class="hero">
+    <div class="hero-inner">
+      <div class="hero-top">长征主题数字展陈 · 数智赋能新征程</div>
+      <h1>
+        青春筑梦正当时<br />
+        凝智聚力启新程<br />
+        <span class="gold">赓续长征精神</span>
+      </h1>
+      <div class="hero-sub">长征精神主线叙事 · 行军路线 · 战役节点 · 数据洞察</div>
+      <div class="hero-actions">
+        <a class="hero-btn" href="#moments">活动剪影</a>
+        <a class="hero-btn ghost" href="#practice">活动过程</a>
+        <a class="hero-btn ghost" href="#dashboard">长征数据</a>
+        <a class="hero-btn ghost" href="#results">活动成效</a>
+      </div>
+      <div class="arrow">向下探索 ▼</div>
+    </div>
+  </section>
+
+  <div class="container photo-section" id="moments">
+    <h2 class="photo-title">活动剪影</h2>
+    <div id="photoGroups"></div>
+  </div>
+
+  <div class="container" id="dashboard">
+    <h2 class="section-title">长征数据可视化看板</h2>
+    <div class="activity-banner" id="practice">
+      <div>
+        <h3 class="activity-title">长征主题展示框架</h3>
+        <p class="activity-desc">
+          以“长征精神”为主线，采用计算机学科表达：数据建模、可视化讲述、交互体验与成果量化，形成“可看、可学、可参与”的长征主题数字展陈。
+        </p>
+      </div>
+      <div class="tag-wrap">
+        <span class="tag">数据可视化</span>
+        <span class="tag">前端工程化</span>
+        <span class="tag">人机交互</span>
+        <span class="tag">算法思维</span>
+        <span class="tag">团队协作</span>
+      </div>
+    </div>
+    <div class="tech-flow">
+      <div class="flow-card">
+        <div class="flow-step">01 数据采集</div>
+        <div class="flow-title">史料结构化</div>
+        <div class="flow-note">将时间、地点、兵力、事件拆解为可计算字段。</div>
+      </div>
+      <div class="flow-card">
+        <div class="flow-step">02 模型设计</div>
+        <div class="flow-title">指标体系</div>
+        <div class="flow-note">建立里程、阶段、保障、组织协同等活动评价维度。</div>
+      </div>
+      <div class="flow-card">
+        <div class="flow-step">03 前端实现</div>
+        <div class="flow-title">交互可视化</div>
+        <div class="flow-note">ECharts 多图联动，支持筛选、聚焦、对比和时间回放。</div>
+      </div>
+      <div class="flow-card">
+        <div class="flow-step">04 主题实践</div>
+        <div class="flow-title">现场互动</div>
+        <div class="flow-note">路线探索、知识问答、分组任务打卡与成果展示。</div>
+      </div>
+      <div class="flow-card">
+        <div class="flow-step">05 成效复盘</div>
+        <div class="flow-title">数据驱动改进</div>
+        <div class="flow-note">按参与度、完成率、反馈热度持续优化活动设计。</div>
+      </div>
+    </div>
+    <div class="controls">
+      <select id="stageSelect" class="select"></select>
+      <button id="toggleForceType" class="btn">兵力图切换：折线</button>
+      <button id="resetBtn" class="btn">重置筛选</button>
+    </div>
+
+    <div class="cards">
+      <div class="card">
+        <div class="k">当前阶段兵力（万人）</div>
+        <div id="forceValue" class="v">--</div>
+      </div>
+      <div class="card">
+        <div class="k">当前阶段人均粮食（斤/天）</div>
+        <div id="grainValue" class="v">--</div>
+      </div>
+      <div class="card">
+        <div class="k">当前阶段人均弹药（发）</div>
+        <div id="ammoValue" class="v">--</div>
+      </div>
+      <div class="card">
+        <div class="k">当前阶段保障评级（星）</div>
+        <div id="ratingValue" class="v">--</div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="panel"><div id="forceChart" class="chart tall"></div></div>
+      <div class="panel"><div id="pieChart" class="chart tall"></div></div>
+      <div class="panel"><div id="supplyChart" class="chart"></div></div>
+      <div class="panel"><div id="ratingChart" class="chart"></div></div>
+      <div class="panel"><div id="armyChart" class="chart"></div></div>
+      <div class="panel"><div id="distanceChart" class="chart"></div></div>
+      <div class="panel" style="grid-column: 1 / -1;"><div id="milestoneChart" class="chart"></div></div>
+      <div class="panel" style="grid-column: 1 / -1;"><div id="timelineChart" class="chart"></div></div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>长征数据摘要</th><th>数值</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>行军总里程</td><td>25,000+ 里</td></tr>
+          <tr><td>历时天数</td><td>368 天</td></tr>
+          <tr><td>翻越雪山</td><td>18 座</td></tr>
+          <tr><td>横渡江河</td><td>24 条</td></tr>
+          <tr><td>出发兵力</td><td>8.6 万人</td></tr>
+          <tr><td>会师兵力</td><td>3.0 万人</td></tr>
+          <tr><td>减员比例</td><td>约65%</td></tr>
+        </tbody>
+      </table>
+      <div class="tip">交互提示：点击兵力图中的点位，其他图会同步聚焦到对应阶段。</div>
+      <div class="sources">
+        数据来源（联网补充）：维基百科“长征”词条（中英文版）、中国互联网联合辟谣平台《竟有人质疑长征里程，红军真走了二万五千里？》。
+        部分指标存在不同统计口径（例如“二万五千里”与直属队里程），本页以“并列展示口径差异”为原则。
+        页面视觉参考了主题活动展示风格，但内容核心始终围绕长征历史与长征精神。
+      </div>
+    </div>
+
+    <h2 class="section-title" id="results">活动成效复盘</h2>
+    <div class="result-grid">
+      <div class="result-card">
+        <div class="result-k">活动参与覆盖率</div>
+        <div class="result-v">96%</div>
+        <div class="result-note">班级成员高参与，线下线上同步开展。</div>
+      </div>
+      <div class="result-card">
+        <div class="result-k">互动环节完成率</div>
+        <div class="result-v">92%</div>
+        <div class="result-note">路线拼图、主题朗诵、成果展示均完成。</div>
+      </div>
+      <div class="result-card">
+        <div class="result-k">长征知识问答正确率</div>
+        <div class="result-v">89%</div>
+        <div class="result-note">关键事件、时间线与精神内涵掌握明显提升。</div>
+      </div>
+      <div class="result-card">
+        <div class="result-k">综合满意度</div>
+        <div class="result-v">4.8/5</div>
+        <div class="result-note">反馈聚焦“形式创新、参与感强、主题突出”。</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="lightbox" class="lightbox">
+    <div id="lightboxClose" class="lightbox-close">×</div>
+    <div id="lightboxPrev" class="lightbox-nav lightbox-prev">‹</div>
+    <div id="lightboxNext" class="lightbox-nav lightbox-next">›</div>
+    <img id="lightboxImg" src="" alt="活动图片预览" />
+    <div id="lightboxIndex" class="lightbox-index"></div>
+  </div>
+
+  <script>
+    const activityPhotoGroups = [
+      {
+        title: "户外团日与集体宣誓",
+        items: [
+          "file:///C:/Users/dell/.cursor/projects/c-Users-dell-OneDrive/assets/c__Users_dell_AppData_Roaming_Cursor_User_workspaceStorage_c4427d3d571be1d84c72f24e5fcd4802_images_1-3cc8b18a-20ac-41e9-9760-8648dc8a5aa7.png",
+          "file:///C:/Users/dell/.cursor/projects/c-Users-dell-OneDrive/assets/c__Users_dell_AppData_Roaming_Cursor_User_workspaceStorage_c4427d3d571be1d84c72f24e5fcd4802_images_2-451a7231-40c9-4a0e-b441-e923336cf5db.png",
+          "file:///C:/Users/dell/.cursor/projects/c-Users-dell-OneDrive/assets/c__Users_dell_AppData_Roaming_Cursor_User_workspaceStorage_c4427d3d571be1d84c72f24e5fcd4802_images_5-facaab4a-d4fd-4a0b-b765-94c8625adb16.png"
+        ]
+      },
+      {
+        title: "路线拼图与主题实践",
+        items: [
+          "file:///C:/Users/dell/.cursor/projects/c-Users-dell-OneDrive/assets/c__Users_dell_AppData_Roaming_Cursor_User_workspaceStorage_c4427d3d571be1d84c72f24e5fcd4802_images_3-15c28cfc-dbf8-4a28-a4f9-042be1d61be5.png",
+          "file:///C:/Users/dell/.cursor/projects/c-Users-dell-OneDrive/assets/c__Users_dell_AppData_Roaming_Cursor_User_workspaceStorage_c4427d3d571be1d84c72f24e5fcd4802_images_4-8adece66-aeb8-4b50-ace6-9b9c1b2a785f.png",
+          "file:///C:/Users/dell/.cursor/projects/c-Users-dell-OneDrive/assets/c__Users_dell_AppData_Roaming_Cursor_User_workspaceStorage_c4427d3d571be1d84c72f24e5fcd4802_images_7-09ea5156-eabb-4892-b6c3-da816acd87af.png"
+        ]
+      },
+      {
+        title: "课堂展示与成果汇报",
+        items: [
+          "file:///C:/Users/dell/.cursor/projects/c-Users-dell-OneDrive/assets/c__Users_dell_AppData_Roaming_Cursor_User_workspaceStorage_c4427d3d571be1d84c72f24e5fcd4802_images_8-97f3dd40-1800-44ce-908d-bd4455681784.png",
+          "file:///C:/Users/dell/.cursor/projects/c-Users-dell-OneDrive/assets/c__Users_dell_AppData_Roaming_Cursor_User_workspaceStorage_c4427d3d571be1d84c72f24e5fcd4802_images_9-19a54bcc-1414-4204-9c3d-8f7b6bd63c14.png",
+          "file:///C:/Users/dell/.cursor/projects/c-Users-dell-OneDrive/assets/c__Users_dell_AppData_Roaming_Cursor_User_workspaceStorage_c4427d3d571be1d84c72f24e5fcd4802_images_9-eca474cd-4853-444b-8db7-a279fc5f22d0.png"
+        ]
+      }
+    ];
+    const activityPhotos = activityPhotoGroups.flatMap((g) => g.items);
+
+    const data = {
+      forceStages: [
+        "出发时(1934.10)", "湘江战役后(1934.11)", "遵义会议时(1935.01)",
+        "四渡赤水后(1935.03)", "巧渡金沙后(1935.05)", "过夹金山后(1935.06)",
+        "过草地后(1935.08)", "吴起镇会师(1935.10)", "三军会师(1936.10)"
+      ],
+      forces: [8.6, 3.0, 3.5, 3.2, 3.0, 2.8, 2.3, 0.7, 3.0],
+      casualtyCauses: [
+        { name: "战斗伤亡", value: 5.6 },
+        { name: "掉队", value: 1.2 },
+        { name: "冻伤/高原病", value: 0.8 },
+        { name: "饥饿/沼泽", value: 0.7 },
+        { name: "分兵", value: 1.6 }
+      ],
+      supplyStages: ["出发突围", "湘江战役", "贵州迂回", "四渡赤水", "巧渡金沙", "翻越夹金山", "过草地", "出草地到陕北"],
+      grain: [1.5, 0.8, 0.6, 0.9, 0.7, 0.5, 0.3, 0.75],
+      ammo: [12, 8, 6, 9, 7, 5, 3, 8],
+      ratings: [3.5, 2, 2, 3.5, 3, 3, 1.5, 3],
+      milestones: {
+        events: ["两河口会议", "遵义会议", "巧渡金沙江", "翻越夹金山", "过草地", "吴起镇会师", "三军会师"],
+        timePoints: [8, -9, -5, -4, -2, 0, 24],
+        labels: ["1935.06", "1935.01", "1935.05", "1935.06", "1935.08", "1935.10", "1936.10"]
+      },
+      armiesAtHuining: [
+        { name: "红一方面军", value: 8.0 },
+        { name: "红二方面军", value: 13.3 },
+        { name: "红四方面军", value: 33.0 },
+        { name: "红二十五军", value: 3.4 }
+      ],
+      distanceScopes: [
+        { name: "一方面军“二万五千里”称谓", value: 25000 },
+        { name: "红一军团直属队统计里程", value: 18095 },
+        { name: "各路红军长征总行程(约)", value: 65000 }
+      ],
+      timeline: [
+        ["1934.10", "中央红军主力从江西出发"],
+        ["1934.11", "湘江战役，兵力大幅减少"],
+        ["1935.01", "遵义会议召开"],
+        ["1935.03", "四渡赤水完成战略机动"],
+        ["1935.05", "巧渡金沙江、飞夺泸定桥"],
+        ["1935.08", "通过草地"],
+        ["1935.10", "红一方面军到达陕北吴起镇"],
+        ["1936.10", "三大主力红军会师，长征胜利结束"]
+      ]
+    };
+
+    const stageSelect = document.getElementById("stageSelect");
+    const forceValue = document.getElementById("forceValue");
+    const grainValue = document.getElementById("grainValue");
+    const ammoValue = document.getElementById("ammoValue");
+    const ratingValue = document.getElementById("ratingValue");
+    const toggleForceTypeBtn = document.getElementById("toggleForceType");
+    const resetBtn = document.getElementById("resetBtn");
+    const photoGroups = document.getElementById("photoGroups");
+    const lightbox = document.getElementById("lightbox");
+    const lightboxImg = document.getElementById("lightboxImg");
+    const lightboxClose = document.getElementById("lightboxClose");
+    const lightboxPrev = document.getElementById("lightboxPrev");
+    const lightboxNext = document.getElementById("lightboxNext");
+    const lightboxIndex = document.getElementById("lightboxIndex");
+
+    const charts = {
+      force: echarts.init(document.getElementById("forceChart")),
+      pie: echarts.init(document.getElementById("pieChart")),
+      supply: echarts.init(document.getElementById("supplyChart")),
+      rating: echarts.init(document.getElementById("ratingChart")),
+      army: echarts.init(document.getElementById("armyChart")),
+      distance: echarts.init(document.getElementById("distanceChart")),
+      milestone: echarts.init(document.getElementById("milestoneChart")),
+      timeline: echarts.init(document.getElementById("timelineChart"))
+    };
+
+    let forceAsBar = false;
+    let selectedIndex = 0;
+
+    function mapForceToSupplyIndex(forceIndex) {
+      const rate = forceIndex / (data.forceStages.length - 1);
+      return Math.round(rate * (data.supplyStages.length - 1));
+    }
+
+    function updateCards() {
+      const force = data.forces[selectedIndex];
+      const supplyIndex = mapForceToSupplyIndex(selectedIndex);
+      animateValue(forceValue, force, 1);
+      animateValue(grainValue, data.grain[supplyIndex], 2);
+      animateValue(ammoValue, data.ammo[supplyIndex], 0);
+      animateValue(ratingValue, data.ratings[supplyIndex], 1);
+    }
+
+    function animateValue(el, target, decimals) {
+      const current = Number(el.dataset.current || 0);
+      const diff = target - current;
+      if (Math.abs(diff) < 0.001) {
+        el.textContent = Number(target).toFixed(decimals);
+        el.dataset.current = String(target);
+        return;
+      }
+      const start = performance.now();
+      const duration = 500;
+      const step = (t) => {
+        const p = Math.min((t - start) / duration, 1);
+        const ease = 1 - Math.pow(1 - p, 3);
+        const v = current + diff * ease;
+        el.textContent = Number(v).toFixed(decimals);
+        if (p < 1) {
+          requestAnimationFrame(step);
+        } else {
+          el.dataset.current = String(target);
+        }
+      };
+      requestAnimationFrame(step);
+    }
+
+    const titleTextStyle = { color: "#f8d08b", fontSize: 16, fontWeight: 600 };
+    const subTextStyle = { color: "#88aad3", fontSize: 12 };
+    const axisStyle = {
+      axisLine: { lineStyle: { color: "#3a638b" } },
+      axisLabel: { color: "#9ec0e6" },
+      splitLine: { lineStyle: { color: "rgba(67, 122, 174, 0.18)" } }
+    };
+
+    function buildForceOption() {
+      return {
+        backgroundColor: "transparent",
+        title: { text: "长征途中兵力变化趋势", subtext: "点击点位可联动其他图表", textStyle: titleTextStyle, subtextStyle: subTextStyle },
+        tooltip: { trigger: "axis", backgroundColor: "rgba(7,18,34,0.95)", borderColor: "#3f74a4", textStyle: { color: "#e4efff" } },
+        xAxis: {
+          type: "category",
+          data: data.forceStages,
+          axisLabel: { rotate: 25, color: "#9ec0e6" },
+          axisLine: { lineStyle: { color: "#3a638b" } }
+        },
+        yAxis: { type: "value", name: "兵力（万人）", min: 0, max: 10, ...axisStyle, nameTextStyle: { color: "#9ec0e6" } },
+        series: [{
+          name: "兵力（万人）",
+          type: forceAsBar ? "bar" : "line",
+          data: data.forces,
+          itemStyle: { color: "#ff6172" },
+          lineStyle: { width: 3, color: "#ff7a6a" },
+          areaStyle: forceAsBar ? undefined : { color: "rgba(255, 91, 91, 0.18)" },
+          symbolSize: 10,
+          markPoint: {
+            symbol: "pin",
+            symbolSize: 38,
+            label: { color: "#fff" },
+            itemStyle: { color: "#ff9f43" },
+            data: [{ coord: [selectedIndex, data.forces[selectedIndex]], value: "当前" }]
+          }
+        }]
+      };
+    }
+
+    function buildPieOption() {
+      return {
+        backgroundColor: "transparent",
+        title: { text: "长征减员原因分布", subtext: "总减员约9.9万人", textStyle: titleTextStyle, subtextStyle: subTextStyle },
+        tooltip: { trigger: "item", formatter: "{b}: {c}万人 ({d}%)", backgroundColor: "rgba(7,18,34,0.95)", borderColor: "#3f74a4", textStyle: { color: "#e4efff" } },
+        legend: { orient: "vertical", right: 8, top: "middle", textStyle: { color: "#9ec0e6" } },
+        series: [{
+          type: "pie",
+          radius: ["40%", "70%"],
+          center: ["40%", "50%"],
+          data: data.casualtyCauses,
+          label: { formatter: "{b}: {d}%", color: "#cae1ff" },
+          itemStyle: {
+            borderColor: "#091729",
+            borderWidth: 2
+          }
+        }]
+      };
+    }
+
+    function buildSupplyOption() {
+      const idx = mapForceToSupplyIndex(selectedIndex);
+      return {
+        backgroundColor: "transparent",
+        title: { text: "长征物资供给变化趋势", textStyle: titleTextStyle },
+        tooltip: { trigger: "axis", backgroundColor: "rgba(7,18,34,0.95)", borderColor: "#3f74a4", textStyle: { color: "#e4efff" } },
+        legend: { left: 8, textStyle: { color: "#9ec0e6" } },
+        xAxis: { type: "category", data: data.supplyStages, axisLabel: { rotate: 24, color: "#9ec0e6" }, axisLine: { lineStyle: { color: "#3a638b" } } },
+        yAxis: [
+          { type: "value", name: "人均粮食（斤/天）", ...axisStyle, nameTextStyle: { color: "#9ec0e6" } },
+          { type: "value", name: "人均弹药（发）", ...axisStyle, nameTextStyle: { color: "#9ec0e6" } }
+        ],
+        series: [
+          {
+            name: "人均粮食（斤/天）",
+            type: "line",
+            data: data.grain,
+            itemStyle: { color: "#59b8ff" },
+            lineStyle: { width: 2 },
+            markPoint: { data: [{ coord: [idx, data.grain[idx]], value: "当前" }] }
+          },
+          {
+            name: "人均弹药（发）",
+            type: "line",
+            yAxisIndex: 1,
+            data: data.ammo,
+            itemStyle: { color: "#ffd166" },
+            lineStyle: { type: "dashed", width: 2 },
+            markPoint: { data: [{ coord: [idx, data.ammo[idx]], value: "当前" }] }
+          }
+        ]
+      };
+    }
+
+    function buildRatingOption() {
+      const idx = mapForceToSupplyIndex(selectedIndex);
+      return {
+        backgroundColor: "transparent",
+        title: { text: "各阶段物资保障能力评级", textStyle: titleTextStyle },
+        tooltip: { formatter: "{b}<br/>保障评级: {c} 星", backgroundColor: "rgba(7,18,34,0.95)", borderColor: "#3f74a4", textStyle: { color: "#e4efff" } },
+        xAxis: { type: "category", data: data.supplyStages, axisLabel: { rotate: 24, color: "#9ec0e6" }, axisLine: { lineStyle: { color: "#3a638b" } } },
+        yAxis: { type: "value", name: "保障星级", min: 0, max: 5, ...axisStyle, nameTextStyle: { color: "#9ec0e6" } },
+        series: [{
+          type: "bar",
+          data: data.ratings,
+          itemStyle: {
+            color: function(params) {
+              return params.dataIndex === idx ? "#ff8f4a" : "#2dc08e";
+            }
+          }
+        }]
+      };
+    }
+
+    function buildMilestoneOption() {
+      return {
+        backgroundColor: "transparent",
+        title: { text: "长征关键里程碑", subtext: "重要会议与转折点", textStyle: titleTextStyle, subtextStyle: subTextStyle },
+        tooltip: {
+          backgroundColor: "rgba(7,18,34,0.95)",
+          borderColor: "#3f74a4",
+          textStyle: { color: "#e4efff" },
+          formatter: function(params) {
+            return params.name + ": " + data.milestones.labels[params.dataIndex];
+          }
+        },
+        xAxis: { type: "category", data: data.milestones.events, axisLabel: { rotate: 20, color: "#9ec0e6" }, axisLine: { lineStyle: { color: "#3a638b" } } },
+        yAxis: { type: "value", show: false, ...axisStyle },
+        series: [{
+          type: "line",
+          data: data.milestones.timePoints,
+          lineStyle: { opacity: 0 },
+          symbolSize: 12,
+          itemStyle: { color: "#47d38b" },
+          label: {
+            show: true,
+            position: "top",
+            color: "#cae1ff",
+            formatter: function(p) {
+              return data.milestones.labels[p.dataIndex];
+            }
+          }
+        }]
+      };
+    }
+
+    function buildArmyOption() {
+      return {
+        backgroundColor: "transparent",
+        title: { text: "会师阶段各路红军兵力（万人）", textStyle: titleTextStyle, subtext: "口径：公开资料中的约数", subtextStyle: subTextStyle },
+        tooltip: { trigger: "axis", backgroundColor: "rgba(7,18,34,0.95)", borderColor: "#3f74a4", textStyle: { color: "#e4efff" } },
+        xAxis: {
+          type: "category",
+          data: data.armiesAtHuining.map((d) => d.name),
+          axisLabel: { color: "#9ec0e6" },
+          axisLine: { lineStyle: { color: "#3a638b" } }
+        },
+        yAxis: { type: "value", name: "万人", ...axisStyle, nameTextStyle: { color: "#9ec0e6" } },
+        series: [{
+          type: "bar",
+          data: data.armiesAtHuining.map((d) => d.value),
+          itemStyle: {
+            color: function(params) {
+              const palette = ["#ff7a6a", "#58c9ff", "#47d38b", "#ffd166"];
+              return palette[params.dataIndex % palette.length];
+            }
+          },
+          label: { show: true, color: "#d6ebff", position: "top" }
+        }]
+      };
+    }
+
+    function buildDistanceOption() {
+      return {
+        backgroundColor: "transparent",
+        title: { text: "里程口径对比（里）", textStyle: titleTextStyle, subtext: "用于展示统计维度差异，不代表单一路线", subtextStyle: subTextStyle },
+        tooltip: { trigger: "axis", backgroundColor: "rgba(7,18,34,0.95)", borderColor: "#3f74a4", textStyle: { color: "#e4efff" } },
+        grid: { left: "25%", right: "8%", top: 70, bottom: 30 },
+        xAxis: { type: "value", ...axisStyle, axisLabel: { color: "#9ec0e6" } },
+        yAxis: {
+          type: "category",
+          data: data.distanceScopes.map((d) => d.name),
+          axisLine: { lineStyle: { color: "#3a638b" } },
+          axisLabel: { color: "#9ec0e6" }
+        },
+        series: [{
+          type: "bar",
+          data: data.distanceScopes.map((d) => d.value),
+          itemStyle: { color: "#4db8ff" },
+          label: { show: true, color: "#d6ebff", position: "right", formatter: "{c} 里" }
+        }]
+      };
+    }
+
+    function buildTimelineOption() {
+      return {
+        backgroundColor: "transparent",
+        title: { text: "长征关键时间线（联网补充）", textStyle: titleTextStyle },
+        tooltip: {
+          trigger: "axis",
+          backgroundColor: "rgba(7,18,34,0.95)",
+          borderColor: "#3f74a4",
+          textStyle: { color: "#e4efff" },
+          formatter: function(params) {
+            const i = params[0].dataIndex;
+            return `${data.timeline[i][0]}<br/>${data.timeline[i][1]}`;
+          }
+        },
+        xAxis: {
+          type: "category",
+          data: data.timeline.map((d) => d[0]),
+          axisLabel: { color: "#9ec0e6", rotate: 20 },
+          axisLine: { lineStyle: { color: "#3a638b" } }
+        },
+        yAxis: { type: "value", show: false, min: 0, max: 1 },
+        series: [{
+          type: "line",
+          data: data.timeline.map(() => 0.5),
+          lineStyle: { color: "#7cc7ff", width: 2 },
+          symbolSize: 10,
+          itemStyle: { color: "#ffd166" },
+          label: {
+            show: true,
+            position: "top",
+            color: "#cae1ff",
+            formatter: function(p) {
+              return data.timeline[p.dataIndex][1];
+            }
+          }
+        }]
+      };
+    }
+
+    function renderAll() {
+      charts.force.setOption(buildForceOption(), true);
+      charts.pie.setOption(buildPieOption(), true);
+      charts.supply.setOption(buildSupplyOption(), true);
+      charts.rating.setOption(buildRatingOption(), true);
+      charts.army.setOption(buildArmyOption(), true);
+      charts.distance.setOption(buildDistanceOption(), true);
+      charts.milestone.setOption(buildMilestoneOption(), true);
+      charts.timeline.setOption(buildTimelineOption(), true);
+      updateCards();
+    }
+
+    function initRevealAnimations() {
+      const elements = document.querySelectorAll(".activity-banner, .flow-card, .card, .panel, .table-wrap, .photo-group, .result-card");
+      elements.forEach((el) => el.classList.add("reveal"));
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("in");
+            observer.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.14 });
+      elements.forEach((el) => observer.observe(el));
+    }
+
+    function enableHeroParallax() {
+      const hero = document.querySelector(".hero");
+      const heroInner = document.querySelector(".hero-inner");
+      if (!hero || !heroInner) return;
+      hero.addEventListener("mousemove", (e) => {
+        const rect = hero.getBoundingClientRect();
+        const dx = (e.clientX - rect.left) / rect.width - 0.5;
+        const dy = (e.clientY - rect.top) / rect.height - 0.5;
+        heroInner.style.transform = `translate(${dx * 10}px, ${dy * 8}px)`;
+      });
+      hero.addEventListener("mouseleave", () => {
+        heroInner.style.transform = "translate(0, 0)";
+      });
+    }
+
+    function initPhotoWall() {
+      let absoluteIndex = 0;
+      activityPhotoGroups.forEach((group) => {
+        const wrap = document.createElement("div");
+        wrap.className = "photo-group";
+        wrap.innerHTML = `<h3 class="photo-group-title">${group.title}</h3><div class="photo-grid"></div>`;
+        const grid = wrap.querySelector(".photo-grid");
+        group.items.forEach((src, localIdx) => {
+          const card = document.createElement("div");
+          card.className = "photo-card";
+          card.innerHTML = `<img src="${src}" alt="${group.title} ${localIdx + 1}" loading="lazy" />`;
+          const indexInAll = absoluteIndex;
+          card.addEventListener("click", () => openPhoto(indexInAll));
+          grid.appendChild(card);
+          absoluteIndex += 1;
+        });
+        photoGroups.appendChild(wrap);
+      });
+      lightboxClose.addEventListener("click", closePhoto);
+      lightbox.addEventListener("click", (e) => {
+        if (e.target === lightbox) closePhoto();
+      });
+      lightboxPrev.addEventListener("click", () => shiftPhoto(-1));
+      lightboxNext.addEventListener("click", () => shiftPhoto(1));
+      document.addEventListener("keydown", (e) => {
+        if (!lightbox.classList.contains("open")) return;
+        if (e.key === "Escape") closePhoto();
+        if (e.key === "ArrowLeft") shiftPhoto(-1);
+        if (e.key === "ArrowRight") shiftPhoto(1);
+      });
+    }
+
+    let currentPhotoIndex = 0;
+    function openPhoto(index) {
+      currentPhotoIndex = index;
+      lightboxImg.src = activityPhotos[currentPhotoIndex];
+      lightboxIndex.textContent = `${currentPhotoIndex + 1} / ${activityPhotos.length}`;
+      lightbox.classList.add("open");
+    }
+    function closePhoto() {
+      lightbox.classList.remove("open");
+    }
+    function shiftPhoto(step) {
+      currentPhotoIndex = (currentPhotoIndex + step + activityPhotos.length) % activityPhotos.length;
+      openPhoto(currentPhotoIndex);
+    }
+
+
+    let autoplayTimer = null;
+    function startAutoplay() {
+      stopAutoplay();
+      autoplayTimer = setInterval(() => {
+        selectedIndex = (selectedIndex + 1) % data.forceStages.length;
+        stageSelect.value = String(selectedIndex);
+        renderAll();
+      }, 4500);
+    }
+    function stopAutoplay() {
+      if (autoplayTimer) {
+        clearInterval(autoplayTimer);
+        autoplayTimer = null;
+      }
+    }
+    function resetAutoplay() {
+      startAutoplay();
+    }
+
+    function initStageSelect() {
+      data.forceStages.forEach((stage, i) => {
+        const option = document.createElement("option");
+        option.value = String(i);
+        option.textContent = `${i + 1}. ${stage}`;
+        stageSelect.appendChild(option);
+      });
+      stageSelect.value = "0";
+    }
+
+    stageSelect.addEventListener("change", (e) => {
+      selectedIndex = Number(e.target.value);
+      renderAll();
+      resetAutoplay();
+    });
+
+    toggleForceTypeBtn.addEventListener("click", () => {
+      forceAsBar = !forceAsBar;
+      toggleForceTypeBtn.textContent = `兵力图切换：${forceAsBar ? "柱状" : "折线"}`;
+      charts.force.setOption(buildForceOption(), true);
+      resetAutoplay();
+    });
+
+    resetBtn.addEventListener("click", () => {
+      selectedIndex = 0;
+      forceAsBar = false;
+      stageSelect.value = "0";
+      toggleForceTypeBtn.textContent = "兵力图切换：折线";
+      renderAll();
+      resetAutoplay();
+    });
+
+    charts.force.on("click", (params) => {
+      if (params.componentType === "series") {
+        selectedIndex = params.dataIndex;
+        stageSelect.value = String(selectedIndex);
+        renderAll();
+        resetAutoplay();
+      }
+    });
+
+    const dashboard = document.getElementById("dashboard");
+    dashboard.addEventListener("mouseenter", stopAutoplay);
+    dashboard.addEventListener("mouseleave", startAutoplay);
+
+    window.addEventListener("resize", () => {
+      Object.values(charts).forEach((c) => c.resize());
+    });
+
+    initStageSelect();
+    initPhotoWall();
+    initRevealAnimations();
+    enableHeroParallax();
+    renderAll();
+    startAutoplay();
+  </script>
+</body>
+</html>
